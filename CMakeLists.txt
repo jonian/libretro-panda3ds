@@ -393,14 +393,45 @@ if(ENABLE_OPENGL)
     set(HEADER_FILES ${HEADER_FILES} ${RENDERER_GL_INCLUDE_FILES})
     source_group("Source Files\\Core\\OpenGL Renderer" FILES ${RENDERER_GL_SOURCE_FILES})
 
+    set(OPENGL_SHADER_FILES src/host_shaders/opengl_display.frag
+        src/host_shaders/opengl_display.vert
+        src/host_shaders/opengl_vertex_shader.vert
+        src/host_shaders/opengl_fragment_shader.frag
+    )
+
+    foreach(SHADER_FILE ${OPENGL_SHADER_FILES})
+        configure_file("${SHADER_FILE}" "${CMAKE_BINARY_DIR}/${SHADER_FILE}" COPYONLY)
+    endforeach()
+
+    if(OPENGL_PROFILE STREQUAL "OpenGLES")
+        message(STATUS "Applying OpenGLES patch...")
+
+        find_package(Patch)
+        if(NOT PATCH_FOUND)
+            message(FATAL_ERROR "Patch executable not found, unable to apply GLES patch!")
+        endif()
+
+        execute_process(
+            COMMAND ${PATCH_EXECUTABLE} -p1 -i ${CMAKE_SOURCE_DIR}/.github/gles.patch
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            RESULT_VARIABLE PATCH_RESULT
+            OUTPUT_VARIABLE PATCH_OUTPUT
+            ERROR_VARIABLE PATCH_ERROR
+        )
+
+        if(NOT PATCH_RESULT EQUAL 0)
+            message(FATAL_ERROR "Failed to apply GLES patch:\n${PATCH_OUTPUT}\n${PATCH_ERROR}")
+        endif()
+    endif()
+
     cmrc_add_resource_library(
         resources_renderer_gl
         NAMESPACE RendererGL
-        WHENCE "src/host_shaders/"
-        "src/host_shaders/opengl_display.frag"
-        "src/host_shaders/opengl_display.vert"
-        "src/host_shaders/opengl_vertex_shader.vert"
-        "src/host_shaders/opengl_fragment_shader.frag"
+        WHENCE "${CMAKE_BINARY_DIR}/src/host_shaders/"
+        "${CMAKE_BINARY_DIR}/src/host_shaders/opengl_display.frag"
+        "${CMAKE_BINARY_DIR}/src/host_shaders/opengl_display.vert"
+        "${CMAKE_BINARY_DIR}/src/host_shaders/opengl_vertex_shader.vert"
+        "${CMAKE_BINARY_DIR}/src/host_shaders/opengl_fragment_shader.frag"
     )
 
     target_sources(AlberCore PRIVATE ${RENDERER_GL_SOURCE_FILES})
